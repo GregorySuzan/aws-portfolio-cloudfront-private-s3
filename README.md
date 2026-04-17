@@ -19,52 +19,7 @@ This is the foundation of my cloud portfolio — it hosts my personal portfolio 
 
 ## 🏗️ Architecture
 
-```
-  Webflow Export
-  (HTML/CSS/JS)
-       │
-       │ manual upload
-       ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                     AWS CLOUD (us-east-1)                       │
-│                                                                 │
-│   ┌──────────────────────────────────────────────────────────┐  │
-│   │                  S3 Bucket (Private)                     │  │
-│   │                                                          │  │
-│   │   🔒 Block ALL public access enabled                     │  │
-│   │   📄 index.html + assets (CSS/JS/images)                 │  │
-│   │   🔑 Bucket Policy: allow CloudFront OAC only            │  │
-│   └──────────────────────┬───────────────────────────────────┘  │
-│                          │  Origin Access Control (OAC)         │
-│                          ▼                                      │
-│   ┌──────────────────────────────────────────────────────────┐  │
-│   │               CloudFront Distribution                    │  │
-│   │                                                          │  │
-│   │   🌐 Global edge network (200+ locations)                │  │
-│   │   🔒 HTTPS only (HTTP → HTTPS redirect)                  │  │
-│   │   📄 Default root object: index.html                     │  │
-│   │   🔐 SSL Certificate (AWS ACM — us-east-1)               │  │
-│   └──────────────────────┬───────────────────────────────────┘  │
-│                          │                                      │
-│   ┌──────────────────────┴───────────────────────────────────┐  │
-│   │               AWS ACM (Certificate Manager)              │  │
-│   │   SSL/TLS cert for custom domain — auto-renewed          │  │
-│   └──────────────────────────────────────────────────────────┘  │
-└─────────────────────────────────────────────────────────────────┘
-                           │
-                           │ HTTPS request
-                           ▼
-            ┌──────────────────────────────┐
-            │         IONOS DNS            │
-            │   CNAME record               │
-            │   gregorysuzan.com  ─────────┼──► CloudFront URL
-            └──────────────────────────────┘
-                           │
-                           ▼
-                  🌍 Public Internet
-                  Browser requests
-                  gregorysuzan.com
-```
+![Architecture](docs/architecture-diagram.png)
 
 ---
 
