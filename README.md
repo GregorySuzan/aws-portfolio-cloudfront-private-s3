@@ -19,7 +19,7 @@ This is the foundation of my cloud portfolio — it hosts my personal portfolio 
 
 ## 🏗️ Architecture
 
-![Architecture](docs/architecture-diagram.png)
+![Architecture](architecture-diagram.png)
 
 ---
 
