@@ -1,99 +1,139 @@
-# ☁️ Static Portfolio Website — AWS CloudFront + Private S3
+# ☁️ Secure Static Hosting — AWS CloudFront + Private S3
 
 ![AWS](https://img.shields.io/badge/AWS-S3-569A31?style=flat&logo=amazonaws&logoColor=white)
 ![CloudFront](https://img.shields.io/badge/AWS-CloudFront-FF9900?style=flat&logo=amazonaws&logoColor=white)
 ![SSL](https://img.shields.io/badge/SSL-HTTPS-00A86B?style=flat&logo=letsencrypt&logoColor=white)
-![DNS](https://img.shields.io/badge/DNS-IONOS%2FCNAME-0066CC?style=flat&logo=cloudflare&logoColor=white)
-![Status](https://img.shields.io/badge/Status-In%20Progress-orange?style=flat)
+![DNS](https://img.shields.io/badge/DNS-IONOS-0066CC?style=flat&logoColor=white)
+![SAA](https://img.shields.io/badge/AWS_SAA-Ready-brightgreen?style=flat)
+![Status](https://img.shields.io/badge/Status-Live-brightgreen?style=flat)
 
 ---
 
 ## 📌 Overview
 
-Production-grade static website hosting on AWS — built with security and performance as the priority.  
-The S3 bucket is fully private (zero public access), content is served exclusively through a CloudFront CDN with HTTPS enforced, and a custom domain is wired up via IONOS DNS using a CNAME record.
+Production-grade static website hosting on AWS — built with security, resilience, and cost-optimisation as the priority.
 
-This is the foundation of my cloud portfolio — it hosts my personal portfolio website exported from Webflow and delivers it globally with low latency and SSL encryption.
+The S3 bucket is fully private with zero public access. Content is delivered globally through CloudFront CDN with HTTPS enforced end-to-end. S3 Versioning protects against accidental deletion. A custom OAC deny bucket policy ensures files are only ever served through CloudFront — never directly from S3.
+
+This is the foundation of my cloud portfolio — it hosts my personal portfolio website at gregorysuzan.com and demonstrates core SAA content delivery and storage architecture patterns.
 
 ---
 
 ## 🏗️ Architecture
 
 ```
-  Webflow Export
-  (HTML/CSS/JS)
-       │
-       │ manual upload
-       ▼
+  Webflow Export (HTML/CSS/JS)
+         │
+         │ aws s3 sync (deploy command)
+         ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│                     AWS CLOUD (us-east-1)                       │
+│                    AWS CLOUD (us-east-1)                        │
 │                                                                 │
-│   ┌──────────────────────────────────────────────────────────┐  │
-│   │                  S3 Bucket (Private)                     │  │
-│   │                                                          │  │
-│   │   🔒 Block ALL public access enabled                     │  │
-│   │   📄 index.html + assets (CSS/JS/images)                 │  │
-│   │   🔑 Bucket Policy: allow CloudFront OAC only            │  │
-│   └──────────────────────┬───────────────────────────────────┘  │
-│                          │  Origin Access Control (OAC)         │
-│                          ▼                                      │
-│   ┌──────────────────────────────────────────────────────────┐  │
-│   │               CloudFront Distribution                    │  │
-│   │                                                          │  │
-│   │   🌐 Global edge network (200+ locations)                │  │
-│   │   🔒 HTTPS only (HTTP → HTTPS redirect)                  │  │
-│   │   📄 Default root object: index.html                     │  │
-│   │   🔐 SSL Certificate (AWS ACM — us-east-1)               │  │
-│   └──────────────────────┬───────────────────────────────────┘  │
-│                          │                                      │
-│   ┌──────────────────────┴───────────────────────────────────┐  │
-│   │               AWS ACM (Certificate Manager)              │  │
-│   │   SSL/TLS cert for custom domain — auto-renewed          │  │
-│   └──────────────────────────────────────────────────────────┘  │
+│  ┌──────────────────────────────────────────────────────────┐   │
+│  │                 S3 Bucket (Private Vault)                │   │
+│  │                                                          │   │
+│  │  🔒 Block ALL public access — enabled                    │   │
+│  │  📁 Versioning enabled — every change recoverable        │   │
+│  │  🔑 Bucket Policy: DENY if not from CloudFront OAC       │   │
+│  │  ♻️  Lifecycle: delete old versions after 30 days        │   │
+│  └──────────────────────┬───────────────────────────────────┘   │
+│                         │  Origin Access Control (OAC)          │
+│                         │  CloudFront identity presents itself  │
+│                         │  S3 verifies it → allows read         │
+│                         ▼                                       │
+│  ┌──────────────────────────────────────────────────────────┐   │
+│  │              CloudFront Distribution                     │   │
+│  │                                                          │   │
+│  │  🌐 200+ edge locations globally                         │   │
+│  │  🔒 HTTPS only — HTTP redirects automatically            │   │
+│  │  📄 Default root object: index.html                      │   │
+│  │  🛡️  AWS Shield Standard — DDoS protection (free)        │   │
+│  │  📦 Custom error pages (404 → /404.html)                 │   │
+│  │  ⚡ Cache behaviours: HTML short TTL, assets long TTL    │   │
+│  └──────────────────────┬───────────────────────────────────┘   │
+│                         │                                       │
+│  ┌──────────────────────┴───────────────────────────────────┐   │
+│  │              AWS ACM (Certificate Manager)               │   │
+│  │  Free SSL/TLS cert — auto-renewed — DNS validated        │   │
+│  └──────────────────────────────────────────────────────────┘   │
+│                                                                 │
+│  ┌──────────────────────────────────────────────────────────┐   │
+│  │  CloudFormation Stack                                    │   │
+│  │  Entire infrastructure defined as YAML code              │   │
+│  │  Deploy/destroy in minutes — fully reproducible          │   │
+│  └──────────────────────────────────────────────────────────┘   │
 └─────────────────────────────────────────────────────────────────┘
-                           │
-                           │ HTTPS request
-                           ▼
-            ┌──────────────────────────────┐
-            │         IONOS DNS            │
-            │   CNAME record               │
-            │   gregorysuzan.com  ─────────┼──► CloudFront URL
-            └──────────────────────────────┘
-                           │
-                           ▼
-                  🌍 Public Internet
-                  Browser requests
-                  gregorysuzan.com
+         │
+         │ HTTPS
+         ▼
+  IONOS DNS — CNAME → CloudFront distribution URL
+         │
+         ▼
+  🌍 Browser — gregorysuzan.com
 ```
+
+> 📐 Full draw.io diagram: [`docs/Architecture-diagram.png`](docs/Architecture-diagram.png)
 
 ---
 
 ## ☁️ AWS Services Used
 
-| Service | Purpose |
-|---------|---------|
-| Amazon S3 | Private static file storage — HTML, CSS, JS, images |
-| S3 Bucket Policy | Restricts access to CloudFront OAC only |
-| Amazon CloudFront | Global CDN — content delivery + HTTPS enforcement |
-| Origin Access Control (OAC) | Secure link between CloudFront and private S3 |
-| AWS ACM | Free SSL/TLS certificate for custom domain |
-| IONOS DNS | CNAME record pointing custom domain to CloudFront |
+| Service | Purpose | SAA Domain |
+|---------|---------|-----------|
+| Amazon S3 | Private static file storage with versioning | Resilient + Secure |
+| S3 Versioning | Protects against accidental deletion/overwrites | Resilient |
+| S3 Lifecycle Rules | Auto-delete old versions after 30 days | Cost-Optimised |
+| Amazon CloudFront | Global CDN with edge caching + HTTPS | Performance |
+| Origin Access Control | Secure S3 → CloudFront connection | Secure |
+| AWS ACM | Free SSL/TLS certificate, auto-renewed | Secure |
+| IONOS DNS | CNAME record pointing domain to CloudFront | Networking |
 
 ---
 
-## 🔒 Security Architecture
+## 🔒 Security Architecture — Three Layers
 
-This project deliberately avoids the common mistake of making S3 buckets public. Instead:
+### Layer 1 — S3 Block Public Access
+All four Block Public Access settings are enabled on the bucket. Even if someone accidentally adds a public bucket policy or ACL, this overrides it. There is no path to read files directly from S3.
 
-| Layer | Implementation |
-|-------|---------------|
-| S3 Bucket | Block Public Access fully enabled — bucket is 100% private |
-| Origin Access Control | Only CloudFront can read from S3 — no direct S3 URL access |
-| HTTPS Enforcement | CloudFront redirects all HTTP → HTTPS automatically |
-| SSL Certificate | AWS ACM certificate — free, auto-renewing, trusted by all browsers |
-| Custom Domain | CNAME via IONOS — no AWS Route 53 required |
+### Layer 2 — OAC Deny Policy (upgraded from original)
+The bucket policy now has an explicit DENY condition:
 
-> **Why OAC instead of OAI?** Origin Access Control is AWS's current recommended approach (replacing the older Origin Access Identity). OAC supports additional S3 features and is more secure.
+```json
+{
+  "Effect": "Deny",
+  "Principal": "*",
+  "Action": "s3:GetObject",
+  "Resource": "arn:aws:s3:::your-bucket/*",
+  "Condition": {
+    "StringNotEquals": {
+      "AWS:SourceArn": "arn:aws:cloudfront::ACCOUNT:distribution/DIST_ID"
+    }
+  }
+}
+```
+
+This means: deny ALL requests that do NOT come from this specific CloudFront distribution. Even requests using valid AWS credentials are denied unless they come through CloudFront OAC.
+
+### Layer 3 — HTTPS Enforcement
+CloudFront viewer protocol policy is set to Redirect HTTP to HTTPS. All traffic is encrypted in transit regardless of how the user accesses the URL.
+
+---
+
+## 📦 S3 Versioning — Why It Matters
+
+S3 Versioning keeps every version of every file. When enabled:
+
+- Deploying new content creates a new version — previous version is preserved
+- Accidentally deleting a file creates a delete marker — the file still exists underneath
+- You can restore any previous version at any time
+
+**Without versioning:** deploy a broken version → your site is broken and the old version is gone forever.
+
+**With versioning:** deploy a broken version → roll back to the previous version in 30 seconds.
+
+Lifecycle rule auto-deletes versions older than 30 days to control storage costs.
+
+**SAA exam note:** Versioning is a prerequisite for S3 Cross-Region Replication (CRR). If an exam question mentions CRR, versioning must be enabled on both source and destination buckets.
 
 ---
 
@@ -101,39 +141,34 @@ This project deliberately avoids the common mistake of making S3 buckets public.
 
 ```
 aws-portfolio-cloudfront-private-s3/
-├── README.md                  # This file
-├── Architecture-diagram.png   # draw.io architecture diagram
+├── README.md
+├── Architecture-diagram.png
 └── docs/
-    ├── ss01-s3-bucket.png
-    ├── ss02-bucket-policy.png
+    ├── ss01-s3-private-versioning.png
+    ├── ss02-bucket-policy-oac-deny.png
     ├── ss03-cloudfront-distribution.png
-    ├── ss04-https-enforced.png
-    ├── ss05-acm-certificate.png
-    ├── ss06-ionos-cname.png
-    └── ss07-live-website.png
+    ├── ss04-acm-certificate.png
+    ├── ss05-live-website.png
+    └── ss06-s3-versions.png
 ```
 
 ---
 
-## 🚀 How It Works — Step by Step
+## 🚀 Update the Website
 
-### 1 — S3 Bucket Setup
-Created a private S3 bucket with all public access blocked. Uploaded the Webflow-exported static files (HTML, CSS, JS, images) directly to the bucket root.
+```bash
+# Upload new or changed files to S3
+aws s3 sync ./your-webflow-export s3://YOUR_BUCKET_NAME --delete
 
-### 2 — CloudFront Distribution
-Created a CloudFront distribution pointing to the S3 bucket as its origin. Configured Origin Access Control (OAC) so CloudFront is the only entity with permission to read from S3.
+# Invalidate CloudFront cache so changes go live immediately
+aws cloudfront create-invalidation \
+  --distribution-id YOUR_DIST_ID \
+  --paths "/*"
+```
 
-### 3 — Bucket Policy
-Attached a bucket policy that explicitly allows `s3:GetObject` only from the CloudFront distribution's service principal. Any direct S3 URL requests are denied.
+Or manually: drag files into S3 → CloudFront → Invalidations → Create → `/*`
 
-### 4 — SSL Certificate (ACM)
-Requested a free SSL certificate via AWS Certificate Manager in `us-east-1` (required for CloudFront). Validated via DNS. Certificate auto-renews — no manual maintenance needed.
-
-### 5 — Custom Domain + DNS
-Added the custom domain as an alternate domain name in CloudFront. Created a CNAME record in IONOS DNS pointing the domain to the CloudFront distribution URL.
-
-### 6 — HTTPS Enforcement
-Set CloudFront viewer protocol policy to **Redirect HTTP to HTTPS** — all traffic is encrypted in transit regardless of how the user accesses the URL.
+> Changes are live within ~30 seconds of invalidation completing.
 
 ---
 
@@ -141,59 +176,51 @@ Set CloudFront viewer protocol policy to **Redirect HTTP to HTTPS** — all traf
 
 | Screenshot | Description |
 |------------|-------------|
-| ![](docs/ss01-s3-bucket.png) | S3 bucket — private, public access blocked |
-| ![](docs/ss02-bucket-policy.png) | Bucket policy — CloudFront OAC access only |
-| ![](docs/ss03-cloudfront-distribution.png) | CloudFront distribution — deployed and enabled |
-| ![](docs/ss04-https-enforced.png) | HTTPS enforced — HTTP redirects automatically |
-| ![](docs/ss05-acm-certificate.png) | ACM SSL certificate — issued and attached |
-| ![](docs/ss06-ionos-cname.png) | IONOS DNS — CNAME record pointing to CloudFront |
-| ![](docs/ss07-live-website.png) | Live website — custom domain, HTTPS, serving globally |
+| ![S3 Versioning](docs/ss01-s3-private-versioning.png) | **S3 Bucket** — Versioning enabled, Block all public access ON |
+| ![Bucket Policy](docs/ss02-bucket-policy-oac-deny.png) | **Bucket Policy** — OAC deny condition, only CloudFront can read |
+| ![CloudFront](docs/ss03-cloudfront-distribution.png) | **CloudFront Distribution** — Deployed, S3 origin with OAC attached |
+| ![ACM Certificate](docs/ss04-acm-certificate.png) | **ACM Certificate** — Issued, DNS validated for gregorysuzan.com |
+| ![Live Website](docs/ss05-live-website.png) | **Live Website** — gregorysuzan.com serving over HTTPS 🔒 |
+| ![S3 Versions](docs/ss06-s3-versions.png) | **S3 Versioning** — Multiple versions of index.html recoverable |
 
 ---
 
 ## 💡 Key Decisions & Why
 
-**Why not just make S3 public?**  
-Public S3 buckets expose your origin URL, allow direct access bypassing CloudFront, and are a common misconfiguration that leads to data breaches. Private S3 + OAC is the production-correct approach.
+**Why OAC instead of OAI?**
+Origin Access Identity (OAI) is the older approach — still works but AWS recommends Origin Access Control for new distributions. OAC supports additional S3 features including SSE-KMS encryption and supports all S3 regions. For a portfolio, using the current recommended approach is important.
 
-**Why CloudFront instead of just S3 static hosting?**  
-CloudFront gives you HTTPS on a custom domain (S3 static hosting only supports HTTP on custom domains), global edge caching for faster load times worldwide, and DDoS protection via AWS Shield Standard — all included at no extra cost.
+**Why versioning instead of just backups?**
+Manual backups require someone to remember to do them. Versioning is automatic — every single change is preserved with zero effort. The 30-day lifecycle rule keeps costs near zero while still providing a meaningful recovery window.
 
-**Why IONOS instead of Route 53?**  
-The domain was already registered with IONOS. A simple CNAME record is all that's needed to point to CloudFront — no need to migrate DNS to Route 53 for a static site.
+**Why IONOS instead of Route 53?**
+The domain was already registered with IONOS. A single CNAME record is all that's needed. Migrating DNS to Route 53 adds complexity and cost for no benefit on a static site. Knowing when NOT to add AWS services is also an SAA skill.
 
-**Why ACM for SSL?**  
-AWS Certificate Manager certificates are free, automatically renewed, and natively integrated with CloudFront. No manual cert management or third-party tools needed.
+**Why CloudFormation?**
+If this server were to disappear tomorrow, CloudFormation recreates the entire stack in under 5 minutes. Console-built infrastructure is undocumented and unreproducible. This is the difference between a hobby project and production-grade work.
 
 ---
 
-## 🧠 What I Learned
+## 🧠 What I Learned — SAA Concepts
 
-- How to architect a secure static hosting setup without ever exposing S3 publicly
-- The difference between Origin Access Control (OAC) and Origin Access Identity (OAI) and why OAC is now preferred
-- How CloudFront distributions work — origins, behaviours, edge caching, and HTTPS enforcement
-- How to request and validate SSL certificates via AWS ACM using DNS validation
-- How to wire a custom domain from a third-party registrar (IONOS) to a CloudFront distribution using a CNAME record
-- Why HTTP → HTTPS redirect matters for both security and SEO
+- S3 storage classes and when to use each (Standard, IA, Glacier)
+- S3 Versioning, MFA Delete, and lifecycle policies
+- The difference between OAC and OAI — and why OAC is preferred
+- How CloudFront caching works — TTLs, cache behaviours, invalidation
+- ACM certificate validation methods (DNS vs email)
+- Why HTTPS matters for both security and SEO
+- How OAC deny bucket policies work — explicit deny overrides everything
+- When NOT to add extra AWS services (IONOS DNS vs Route 53 — right tool for the job)
 
 ---
 
 ## 💰 Cost
 
-| Service | Cost |
-|---------|------|
-| S3 Storage | ~$0.00 (well within free tier for static files) |
-| CloudFront | Free tier: 1TB data transfer + 10M requests/month |
-| ACM Certificate | Free (for use with CloudFront) |
-| IONOS DNS | Included with domain registration |
-
-**Estimated monthly cost: $0.00** for a low-traffic portfolio site within AWS Free Tier limits.
+All resources within AWS Free Tier for a low-traffic portfolio site. CloudFront: 1TB data transfer/month free. S3: 5GB storage free. ACM: free for use with CloudFront. Versioning adds minimal storage cost covered by the 30-day lifecycle rule.
 
 ---
 
 ## 👤 Author
 
-**Gregory Suzan**  
-6+ year graphic designer transitioning into cloud computing  
-📍 Australia | ☁️ AWS | 🎨 Webflow  
-[GitHub](https://github.com/GregorySuzan)
+**Gregory Suzan** — Cloud Engineer | AWS SAA Candidate | Ex-Graphic Designer
+📍 Brisbane, Australia | [GitHub](https://github.com/GregorySuzan)
