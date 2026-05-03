@@ -72,7 +72,7 @@ This is the foundation of my cloud portfolio — it hosts my personal portfolio 
   🌍 Browser — gregorysuzan.com
 ```
 
-> 📐 Full draw.io diagram: [`docs/Architecture-diagram.png`](docs/Architecture-diagram.png)
+> 📐 Full draw.io diagram: [`docs/Architecture-diagram.png`](docs/architecture-diagram.png)
 
 ---
 
