@@ -21,58 +21,9 @@ This is the foundation of my cloud portfolio — it hosts my personal portfolio 
 
 ## 🏗️ Architecture
 
-```
-  Webflow Export (HTML/CSS/JS)
-         │
-         │ aws s3 sync (deploy command)
-         ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                    AWS CLOUD (us-east-1)                        │
-│                                                                 │
-│  ┌──────────────────────────────────────────────────────────┐   │
-│  │                 S3 Bucket (Private Vault)                │   │
-│  │                                                          │   │
-│  │  🔒 Block ALL public access — enabled                    │   │
-│  │  📁 Versioning enabled — every change recoverable        │   │
-│  │  🔑 Bucket Policy: DENY if not from CloudFront OAC       │   │
-│  │  ♻️  Lifecycle: delete old versions after 30 days        │   │
-│  └──────────────────────┬───────────────────────────────────┘   │
-│                         │  Origin Access Control (OAC)          │
-│                         │  CloudFront identity presents itself  │
-│                         │  S3 verifies it → allows read         │
-│                         ▼                                       │
-│  ┌──────────────────────────────────────────────────────────┐   │
-│  │              CloudFront Distribution                     │   │
-│  │                                                          │   │
-│  │  🌐 200+ edge locations globally                         │   │
-│  │  🔒 HTTPS only — HTTP redirects automatically            │   │
-│  │  📄 Default root object: index.html                      │   │
-│  │  🛡️  AWS Shield Standard — DDoS protection (free)        │   │
-│  │  📦 Custom error pages (404 → /404.html)                 │   │
-│  │  ⚡ Cache behaviours: HTML short TTL, assets long TTL    │   │
-│  └──────────────────────┬───────────────────────────────────┘   │
-│                         │                                       │
-│  ┌──────────────────────┴───────────────────────────────────┐   │
-│  │              AWS ACM (Certificate Manager)               │   │
-│  │  Free SSL/TLS cert — auto-renewed — DNS validated        │   │
-│  └──────────────────────────────────────────────────────────┘   │
-│                                                                 │
-│  ┌──────────────────────────────────────────────────────────┐   │
-│  │  CloudFormation Stack                                    │   │
-│  │  Entire infrastructure defined as YAML code              │   │
-│  │  Deploy/destroy in minutes — fully reproducible          │   │
-│  └──────────────────────────────────────────────────────────┘   │
-└─────────────────────────────────────────────────────────────────┘
-         │
-         │ HTTPS
-         ▼
-  IONOS DNS — CNAME → CloudFront distribution URL
-         │
-         ▼
-  🌍 Browser — gregorysuzan.com
-```
+![Architecture Diagram](docs/architecture-diagram.png)
 
-> 📐 Full draw.io diagram: [`docs/Architecture-diagram.png`](docs/architecture-diagram.png)
+> 📐 Built with eraser.io
 
 ---
 
